@@ -1,6 +1,7 @@
 {
   "name": "radish",
   "description": "Search engine that uses Redis as a backend data store",
+  "version": "0.1.0",
   "author": {
     "name": "Victor Kareh",
     "email": "vkareh@vkareh.net"

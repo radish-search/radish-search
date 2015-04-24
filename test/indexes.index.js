@@ -55,6 +55,27 @@ describe('indexes/index', function() {
     });
   });
 
+  describe('#match', function() {
+    before(function(done) {
+      index.add({id: 2, foo: 'bar'}, done);
+    });
+    before(function(done) {
+      index.add({id: 10, foo: 'bar'}, done);
+    });
+
+    it('should return documents with an id that matches the pattern', function(done) {
+      index.match('1*', function(err, result) {
+        if (err) return done(err);
+        expect(result).to.have.keys(['count', 'results']);
+        expect(result.count).to.equal(2);
+        expect(result.results).to.be.an.instanceof(Array);
+        expect(result.results).to.have.length(2);
+        expect(result.results).to.have.members(['1', '10']);
+        done();
+      });
+    });
+  });
+
   describe('#search', function() {
     it('should throw an exception', function() {
       expect(index.search).to.throw(Error);

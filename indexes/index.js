@@ -29,11 +29,11 @@ Index.prototype.remove = function(doc, callback) {
   var cursor = 0;
   var _remove = function(cb) {
     _this.redis.SCAN(cursor, 'MATCH', prefix + '*', function(err, reply) {
-      if (err) return callback(err);
+      if (err) return cb(err);
       cursor = reply[0];
-      var keys = reply[1] || [null];
+      var keys = reply[1] || [];
       var remaining = keys.length;
-      if (!remaining) return callback(null, 'OK');
+      if (!remaining) return cb(null, 'OK');
       keys.forEach(function(key) {
         _this.redis[cmd](key, id, function(err, reply) {
           if (err) return cb(err);
@@ -63,6 +63,47 @@ Index.prototype.get = function(key, callback) {
     args.push(-1);
   }
   this.redis[cmd](args, callback);
+}
+
+// Find documents matching keys using patterns
+Index.prototype.match = function(pattern, callback) {
+  var key = this.prefix + pattern;
+  var cursor = 0;
+  var _this = this;
+  var keys = [];
+  var _match = function(cb) {
+    // Get a list of all keys matching the pattern
+    _this.redis.SCAN(cursor, 'MATCH', key, function(err, reply) {
+      if (err) return cb(err);
+      cursor = reply[0];
+      keys = keys.concat(reply[1] || []);
+      if (cursor == 0) {
+        cb(null, keys);
+      } else {
+        process.nextTick(function() {
+          _match(cb);
+        });
+      }
+    });
+  }
+  _match(function(err, keys) {
+    if (err) return callback(err);
+    var destination = 'match:' + pattern;
+    // Determine the union of all matching keys and cache it
+    var cmd = !!_this.sorted ? 'ZUNIONSTORE' : 'SUNIONSTORE';
+    _this.redis[cmd]([_this.prefix + destination, keys.length].concat(keys), function(err, count) {
+      //~ _this.redis.EXPIRE(_this.prefix + destination, _this.cache);
+      if (err) return callback(err);
+      var result = { count: count };
+      _this.get(destination, function(err, data) {
+        if (err) return callback(err);
+        // TODO: Decide whether to delete the destination or keep it for cache
+        _this.redis.DEL(_this.prefix + destination);
+        result.results = data;
+        callback(null, result);
+      });
+    });
+  });
 }
 
 Index.prototype.search = function() {

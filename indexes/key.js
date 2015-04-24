@@ -33,35 +33,24 @@ KeyIndex.prototype.add = function(obj, callback) {
 // Search for documents using indexed key patterns
 KeyIndex.prototype.search = function(patterns, callback) {
   if (!Array.isArray(patterns)) {
-    patterns = patterns.split(' ');
+    patterns = patterns.replace(/\s+/g, ' ').split(' ');
   }
   var _this = this;
-  var result = {};
-  var keys = [];
-  var remaining = patterns.length;
-  patterns.forEach(function(pattern) {
-    var destination = 'search:' + pattern;
-    // TODO: Use `destination` to reuse cached queries
-    // Get a list of all keys matching the pattern
-    _this.redis.SCAN(0, 'MATCH', _this.prefix + pattern, function(err, reply) {
+  var destination = 'search:' + patterns.join('-');
+  patterns = patterns.map(function(pattern) {
+    return _this.prefix + pattern;
+  });
+  var key = this.prefix + destination;
+  this.redis.ZUNIONSTORE([key, patterns.length].concat(patterns), function(err, count) {
+    //~ _this.redis.EXPIRE(_this.prefix + destination, _this.cache);
+    if (err) return callback(err);
+    var result = { count: count };
+    _this.get(destination, function(err, data) {
       if (err) return callback(err);
-      keys = keys.concat(reply[1]);
-      if (--remaining === 0) {
-        // Determine the union of all matching keys and cache it
-        _this.redis.ZUNIONSTORE([_this.prefix + destination, keys.length].concat(keys), function(err, count) {
-          //~ _this.redis.EXPIRE(_this.prefix + destination, _this.cache);
-          if (err) return callback(err);
-          result.count = count;
-          // Fetch all the documents from the cache
-          _this.get(destination, function(err, data) {
-            if (err) return callback(err);
-            // TODO: Decide whether to delete the destination or keep it for cache
-            _this.redis.DEL(_this.prefix + destination);
-            result.results = data;
-            callback(null, result);
-          });
-        });
-      }
+      // TODO: Decide whether to delete the destination or keep it for cache
+      _this.redis.DEL(key);
+      result.results = data;
+      callback(null, result);
     });
   });
 }

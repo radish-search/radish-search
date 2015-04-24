@@ -57,7 +57,21 @@ describe('indexes/text', function() {
         if (err) return done(err);
         expect(docs).to.be.an.instanceof(Array);
         expect(docs).to.have.length(2);
-        expect(docs).to.contain.members(['1', '3']);
+        expect(docs).to.have.members(['1', '3']);
+        done();
+      });
+    });
+  });
+
+  describe('#match', function() {
+    it('should return documents with keys that match the pattern', function(done) {
+      index.match('ju*', function(err, result) {
+        if (err) return done(err);
+        expect(result).to.have.keys(['count', 'results']);
+        expect(result.count).to.equal(2);
+        expect(result.results).to.be.an.instanceof(Array);
+        expect(result.results).to.have.length(2);
+        expect(result.results).to.have.members(['1', '3']);
         done();
       });
     });
@@ -71,9 +85,7 @@ describe('indexes/text', function() {
         expect(result.count).to.equal(3);
         expect(result.results).to.be.an.instanceof(Array);
         expect(result.results).to.have.length(3);
-        expect(result.results[0]).to.equal('1');
-        expect(result.results[1]).to.equal('2');
-        expect(result.results[2]).to.equal('3');
+        expect(result.results).to.have.members(['1', '2', '3']);
         done();
       });
     });
@@ -88,7 +100,7 @@ describe('indexes/text', function() {
           if (err) return done(err);
           expect(docs).to.be.an.instanceof(Array);
           expect(docs).to.have.length(2);
-          expect(docs).to.contain.members(['2', '3']);
+          expect(docs).to.have.members(['2', '3']);
           done();
         });
       });

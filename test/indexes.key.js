@@ -54,28 +54,42 @@ describe('indexes/key', function() {
         if (err) return done(err);
         expect(docs).to.be.an.instanceof(Array);
         expect(docs).to.have.length(2);
-        expect(docs[0]).to.equal('1');
-        expect(docs[1]).to.equal('2');
+        expect(docs).to.have.members(['1', '2']);
+        done();
+      });
+    });
+  });
+
+  describe('#match', function() {
+    before(function(done) {
+      index.add({id: 3, foo: 'ber'}, done);
+    });
+    before(function(done) {
+      index.add({id: 4, foo: 'baz'}, done);
+    });
+
+    it('should return documents with keys that match the pattern', function(done) {
+      index.match('ba*', function(err, result) {
+        if (err) return done(err);
+        expect(result).to.have.keys(['count', 'results']);
+        expect(result.count).to.equal(3);
+        expect(result.results).to.be.an.instanceof(Array);
+        expect(result.results).to.have.length(3);
+        expect(result.results).to.have.members(['1', '2', '4']);
         done();
       });
     });
   });
 
   describe('#search', function() {
-    before(function(done) {
-      index.add({id: 3, foo: 'baz'}, done);
-    });
-
     it('should search for all ids with matching keys', function(done) {
-      index.search('ba*', function(err, result) {
+      index.search('bar baz', function(err, result) {
         if (err) return done(err);
         expect(result).to.have.keys(['count', 'results']);
         expect(result.count).to.equal(3);
         expect(result.results).to.be.an.instanceof(Array);
         expect(result.results).to.have.length(3);
-        expect(result.results[0]).to.equal('1');
-        expect(result.results[1]).to.equal('2');
-        expect(result.results[2]).to.equal('3');
+        expect(result.results).to.have.members(['1', '2', '4']);
         done();
       });
     });
