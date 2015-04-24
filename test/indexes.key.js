@@ -18,7 +18,7 @@ describe('indexes/key', function() {
     expect(index.idAttribute).to.equal('id');
     expect(index.key).to.equal('foo');
     expect(index.prefix).to.equal('radish-test-key:');
-    expect(index.sorted).to.be.true;
+    expect(index.sorted).to.be.false;
   });
 
   describe('#add', function() {

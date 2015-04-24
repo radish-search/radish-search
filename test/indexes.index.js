@@ -13,7 +13,7 @@ describe('indexes/index', function() {
 
   it('should instantiate an index', function() {
     index = new Index(redis, {idAttribute: 'id', prefix: 'radish-test-index'});
-    expect(index).to.have.keys(['redis', 'idAttribute', 'prefix', 'sorted']);
+    expect(index).to.have.keys(['redis', 'idAttribute', 'key', 'prefix', 'sorted', 'cache']);
     expect(index.redis).to.equal(redis);
     expect(index.idAttribute).to.equal('id');
     expect(index.prefix).to.equal('radish-test-index:');

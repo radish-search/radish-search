@@ -1,8 +1,10 @@
 var Index = function(redis, options) {
   this.redis = redis;
   this.idAttribute = options.idAttribute;
+  this.key = options.idAttribute;
   this.prefix = (options.prefix + ':') || 'index:';
   this.sorted = !!options.sorted;
+  this.cache = options.cache || 3600;
 }
 
 // Index document
@@ -10,13 +12,20 @@ Index.prototype.add = function(doc, callback) {
   if (!doc.hasOwnProperty(this.idAttribute)) {
     return callback(new Error('Document does not contain attribute ' + this.idAttribute));
   }
+  if (!doc.hasOwnProperty(this.key)) {
+    return callback(new Error('Document does not contain key ' + this.key));
+  }
   var _this = this;
   var id = doc[this.idAttribute];
-  var key = this.prefix + id;
-  var cmd = this.sorted ? 'ZADD' : 'SADD';
+  var key = this.prefix + doc[this.key];
+  var cmd = !!this.sorted ? 'ZADD' : 'SADD';
   this.remove(doc, function(err) {
     if (err) return callback(err);
-    _this.redis[cmd](key, id, callback);
+    if (_this.sorted) {
+      _this.redis.ZADD(key, 0, id, callback);
+    } else {
+      _this.redis.SADD(key, id, callback);
+    }
   });
 }
 
