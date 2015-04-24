@@ -1,0 +1,31 @@
+#!/usr/bin/env node
+
+var radish = require('./radish.js');
+var config = require('./lib/config');
+var utils = require('./lib/utils');
+
+// Connect to Redis
+radish({readers: ['mongo']}).on('connected', function(db) {
+  utils.log('Radish is now connected to Redis (db ' + db + ')');
+});
+
+// Connect to Mongo and listen to data changes
+var mongo = new radish.readers.Mongo(config.get('mongo'));
+mongo.listen()
+.on('connected', function() {
+  utils.log('Radish is now connected to MongoDB (' + this.dbName + ')')
+})
+.on('insert', function(data) {
+  console.log('MongoDB:insert', data);
+})
+.on('update', function(data) {
+  console.log('MongoDB:update', data);
+})
+.on('delete', function(data) {
+  console.log('MongoDB:delete', data);
+})
+.on('error', function(err) {
+  console.error('MongoDB:error', err);
+});
+
+module.exports = radish;

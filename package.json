@@ -1,0 +1,27 @@
+{
+  "name": "radish",
+  "description": "Search engine that uses Redis as a backend data store",
+  "author": {
+    "name": "Victor Kareh",
+    "email": "vkareh@vkareh.net"
+  },  
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/vkareh/radish.git"
+  }, 
+  "main": "radish.js",
+  "scripts": {
+    "test": "mocha --reporter=list"
+  },
+  "dependencies": {
+    "mongodb": "^2.0.27",
+    "natural": "^0.2.1",
+    "nconf": "^0.7.1",
+    "redis": "^0.12.1"
+  },
+  "devDependencies": {
+    "chai": "^2.2.0",
+    "mocha": "^2.2.4"
+  }
+}
