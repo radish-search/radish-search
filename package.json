@@ -9,7 +9,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git://github.com/vkareh/radish.git"
+    "url": "git://github.com/radish-search/radish.git"
   }, 
   "main": "radish.js",
   "scripts": {

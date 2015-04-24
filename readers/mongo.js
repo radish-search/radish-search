@@ -32,7 +32,7 @@ MongoReader.prototype.connect = function() {
     db.collection('oplog.rs', function(err, oplog) {
       if (err) return _this.emit('error', err);
       _this.oplog = oplog;
-      _this.emit('connected', oplog);
+      _this.emit('connected');
     });
   });
   return this;
@@ -63,7 +63,7 @@ MongoReader.prototype.cursor = function() {
       numberOfRetries: 1
     });
 
-    _this.emit('cursor', _this.cursor);
+    _this.emit('cursor');
   });
   return this;
 }
