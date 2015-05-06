@@ -15,7 +15,7 @@ utils.inherits(MongoReader, EventEmitter);
 MongoReader.prototype.listen = function() {
   var _this = this;
   _this.connect().on('connected', function() {
-    _this.cursor().on('cursor', function() {
+    _this.getCursor().on('cursor', function() {
       _this.stream().resume();
     });
   });
@@ -29,6 +29,7 @@ MongoReader.prototype.connect = function() {
   var url = 'mongodb://' + this.dbHost + ':' + this.dbPort + '/local?authSource=' + this.dbName;
   MongoDB.MongoClient.connect(url, function(err, db) {
     if (err) return _this.emit('error', err);
+    _this.db = db;
     db.collection('oplog.rs', function(err, oplog) {
       if (err) return _this.emit('error', err);
       _this.oplog = oplog;
@@ -40,7 +41,7 @@ MongoReader.prototype.connect = function() {
 
 // Get a cursor to the latest read operation
 // TODO: Find the first timestamp that has not yet been read
-MongoReader.prototype.cursor = function() {
+MongoReader.prototype.getCursor = function() {
   var _this = this;
   this.oplog.find({}, {ts: 1}).sort({$natural: -1}).limit(1).toArray(function(err, data) {
     if (err) return _this.emit('error', err);
@@ -74,7 +75,7 @@ MongoReader._ops = {'i': 'insert', 'u': 'update', 'd': 'delete'};
 // Wrap that cursor in a Node Stream and start streaming
 MongoReader.prototype.stream = function() {
   var _this = this;
-  var stream = this.cursor.stream()
+  var stream = this.cursor.stream();
 
   stream.on('data', function(data) {
     if (MongoReader._ops.hasOwnProperty(data.op)) {
