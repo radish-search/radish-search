@@ -2,7 +2,7 @@ var BaseIndexer = function(redis, options) {
   this.redis = redis;
   this.idAttribute = options.idAttribute;
   this.key = options.idAttribute;
-  this.prefix = (options.prefix + ':') || 'index:';
+  this.prefix = options.prefix ? (options.prefix + ':') : 'index:';
   this.sorted = !!options.sorted;
   this.cache = options.cache || 3600;
 }

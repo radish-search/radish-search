@@ -5,7 +5,7 @@ var KeyIndexer = function(redis, options) {
   this.redis = redis;
   this.idAttribute = options.idAttribute;
   this.key = options.key;
-  this.prefix = (options.prefix + ':') || ('key:' + this.key + ':');
+  this.prefix = options.prefix ? (options.prefix + ':') : ('key:' + this.key + ':');
   this.sorted = false;
   this.cache = options.cache || 3600;
 }

@@ -9,20 +9,34 @@ var redis = radish(config.get()).on('connected', function(db) {
   utils.log('Radish is now connected to Redis (db ' + db + ')');
 });
 
+var start = function(i) {
+  return function() {
+    utils.log('Radish is now indexing ' + indexes[i].reader.type + ' into ' + i);
+  }
+}
+
+var add = function(i) {
+  return function(doc) {
+    utils.log('Added ' + doc[indexes[i].indexer.idAttribute] + ' to the ' + i + ' index');
+  }
+}
+
+var remove = function(i) {
+  return function(doc) {
+    utils.log('Removed ' + doc[indexes[i].indexer.idAttribute] + ' from the ' + i + ' index');
+  }
+}
+
 // Initialize all configured indexes
 var indexes = config.get('indexes');
 for (var i in indexes) {
   var index = indexes[i];
+  index.reader.index = i;
   var indexer = new radish[index.indexer.type + 'Indexer'](redis, index.indexer);
   var reader = new radish[index.reader.type + 'Reader'](index.reader);
-  new radish.Index(indexer, reader).start()
-  .on('start', function() {
-    utils.log('Radish is now indexing ' + index.reader.type + ' (db ' + index.reader.db + ') into ' + i);
-  })
-  .on('add', function(doc) {
-    utils.log('Added ' + doc[index.indexer.idAttribute] + ' to the ' + i + ' index');
-  })
-  .on('remove', function(doc) {
-    utils.log('Removed ' + doc[index.indexer.idAttribute] + ' from the ' + i + ' index');
-  });
+  new radish.Index(indexer, reader)
+  .start()
+  .on('start', start(i))
+  .on('add', add(i))
+  .on('remove', remove(i));
 }
