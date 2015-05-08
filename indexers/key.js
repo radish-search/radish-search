@@ -1,7 +1,7 @@
-var Index = require('./index');
+var BaseIndexer = require('./base');
 var utils = require('../lib/utils');
 
-var KeyIndex = function(redis, options) {
+var KeyIndexer = function(redis, options) {
   this.redis = redis;
   this.idAttribute = options.idAttribute;
   this.key = options.key;
@@ -10,16 +10,16 @@ var KeyIndex = function(redis, options) {
   this.cache = options.cache || 3600;
 }
 
-utils.inherits(KeyIndex, Index);
+utils.inherits(KeyIndexer, BaseIndexer);
 
 // Index document
-KeyIndex.prototype.add = function(obj, callback) {
+KeyIndexer.prototype.add = function(obj, callback) {
   var doc = utils.flatten(obj);
-  Index.prototype.add.call(this, doc, callback);
+  BaseIndexer.prototype.add.call(this, doc, callback);
 }
 
 // Search for documents using indexed key patterns
-KeyIndex.prototype.search = function(patterns, callback) {
+KeyIndexer.prototype.search = function(patterns, callback) {
   if (!Array.isArray(patterns)) {
     patterns = patterns.replace(/\s+/g, ' ').split(' ');
   }
@@ -44,4 +44,4 @@ KeyIndex.prototype.search = function(patterns, callback) {
   });
 }
 
-module.exports = KeyIndex;
+module.exports = KeyIndexer;

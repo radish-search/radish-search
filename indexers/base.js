@@ -1,4 +1,4 @@
-var Index = function(redis, options) {
+var BaseIndexer = function(redis, options) {
   this.redis = redis;
   this.idAttribute = options.idAttribute;
   this.key = options.idAttribute;
@@ -8,7 +8,7 @@ var Index = function(redis, options) {
 }
 
 // Index document
-Index.prototype.add = function(doc, callback) {
+BaseIndexer.prototype.add = function(doc, callback) {
   if (!doc.hasOwnProperty(this.idAttribute)) {
     return callback(new Error('Document does not contain attribute ' + this.idAttribute));
   }
@@ -30,7 +30,7 @@ Index.prototype.add = function(doc, callback) {
 }
 
 // Iterate through all sets, finding members that contain `id`, then running `SREM #{set} #{id}`
-Index.prototype.remove = function(doc, callback) {
+BaseIndexer.prototype.remove = function(doc, callback) {
   var _this = this;
   var id = 'string' === typeof doc ? doc : doc[this.idAttribute];
   var prefix = this.prefix;
@@ -42,28 +42,31 @@ Index.prototype.remove = function(doc, callback) {
       cursor = reply[0];
       var keys = reply[1] || [];
       var remaining = keys.length;
-      if (!remaining) return cb(null, 'OK');
+      if (!remaining) return _next(cursor, cb);
       keys.forEach(function(key) {
         _this.redis[cmd](key, id, function(err, reply) {
           if (err) return cb(err);
           if (--remaining === 0) {
-            if (cursor == 0) {
-              cb(null, 'OK');
-            } else {
-              process.nextTick(function() {
-                _remove(cb);
-              });
-            }
+            _next(cursor, cb);
           }
         });
       });
     });
   };
+  var _next = function(cursor, cb) {
+    if (cursor == 0) {
+      cb(null, 'OK');
+    } else {
+      process.nextTick(function() {
+        _remove(cb);
+      });
+    }
+  }
   _remove(callback);
 }
 
 // Get documents matching a key
-Index.prototype.get = function(key, callback) {
+BaseIndexer.prototype.get = function(key, callback) {
   key = this.prefix + key;
   var cmd = this.sorted ? 'ZRANGE' : 'SMEMBERS';
   var args = [key];
@@ -75,7 +78,7 @@ Index.prototype.get = function(key, callback) {
 }
 
 // Find documents matching keys using patterns
-Index.prototype.match = function(pattern, callback) {
+BaseIndexer.prototype.match = function(pattern, callback) {
   var key = this.prefix + pattern;
   var cursor = 0;
   var _this = this;
@@ -115,8 +118,8 @@ Index.prototype.match = function(pattern, callback) {
   });
 }
 
-Index.prototype.search = function() {
+BaseIndexer.prototype.search = function() {
   throw new Error('Search not implemented for this index type');
 }
 
-module.exports = Index;
+module.exports = BaseIndexer;

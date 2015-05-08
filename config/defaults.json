@@ -1,12 +1,8 @@
 {
   "redis": {
     "host": "localhost",
-    "port": "6379",
+    "port": 6379,
     "db": 0
   },
-  "mongo": {
-    "host": "localhost",
-    "port": 27017,
-    "db": "radish-test"
-  }
+  "indexes": "config/indexes.json"
 }

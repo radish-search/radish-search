@@ -1,4 +1,4 @@
-var EventEmitter = require('events').EventEmitter;
+var BaseReader = require('./base')
 var utils = require('../lib/utils');
 var MongoDB = require('mongodb');
 
@@ -9,31 +9,47 @@ var MongoReader = function(config) {
   this.dbPort = config.port || 27017;
 }
 
-utils.inherits(MongoReader, EventEmitter);
+utils.inherits(MongoReader, BaseReader);
 
 // Listen to changes in the database
-MongoReader.prototype.listen = function() {
-  var _this = this;
-  _this.connect().on('connected', function() {
-    _this.getCursor().on('cursor', function() {
-      _this.stream().resume();
+MongoReader.prototype.start = function() {
+  if (this._stream) {
+    this._stream.resume();
+  } else {
+    var _this = this;
+    this.connect(function(err) {
+      if (err) return _this.emit('error', err);
+      _this.getCursor(function(err) {
+        if (err) return _this.emit('error', err);
+        _this.stream().resume();
+        _this.emit('start');
+      });
     });
-  });
+  }
+  return this;
+}
+
+// Stop streaming data
+MongoReader.prototype.stop = function() {
+  if (this._stream) {
+    this._stream.pause();
+    this.emit('stop');
+  }
   return this;
 }
 
 // Connect to database
-MongoReader.prototype.connect = function() {
-  if (!this.dbName) return this.emit('error', new Error('Need database name to listen to'));
+MongoReader.prototype.connect = function(callback) {
+  if (!this.dbName) return callback(new Error('Need database name to listen to'));
   var _this = this;
   var url = 'mongodb://' + this.dbHost + ':' + this.dbPort + '/local?authSource=' + this.dbName;
   MongoDB.MongoClient.connect(url, function(err, db) {
-    if (err) return _this.emit('error', err);
+    if (err) return callback.call(_this, err);
     _this.db = db;
     db.collection('oplog.rs', function(err, oplog) {
-      if (err) return _this.emit('error', err);
+      if (err) return callback.call(_this, err);
       _this.oplog = oplog;
-      _this.emit('connected');
+      callback.call(_this, null, oplog);
     });
   });
   return this;
@@ -41,10 +57,10 @@ MongoReader.prototype.connect = function() {
 
 // Get a cursor to the latest read operation
 // TODO: Find the first timestamp that has not yet been read
-MongoReader.prototype.getCursor = function() {
+MongoReader.prototype.getCursor = function(callback) {
   var _this = this;
   this.oplog.find({}, {ts: 1}).sort({$natural: -1}).limit(1).toArray(function(err, data) {
-    if (err) return _this.emit('error', err);
+    if (err) return callback.call(_this, err);
     _this.lastOplogTime = data[0].ts;
     var queryForTime;
 
@@ -52,7 +68,7 @@ MongoReader.prototype.getCursor = function() {
     if (_this.lastOplogTime) {
       queryForTime = { $gt: _this.lastOplogTime };
     } else {
-      tstamp = new MongoDB.Timestamp(0, Math.floor(new Date().getTime() / 1000))
+      tstamp = new MongoDB.Timestamp(0, Math.floor(new Date().getTime() / 1000));
       queryForTime = { $gt: tstamp };
     }
 
@@ -64,23 +80,32 @@ MongoReader.prototype.getCursor = function() {
       numberOfRetries: 1
     });
 
-    _this.emit('cursor');
+    callback.call(_this, null, _this.cursor);
   });
   return this;
 }
 
-// MongoDB oplog operations
-MongoReader._ops = {'i': 'insert', 'u': 'update', 'd': 'delete'};
-
 // Wrap that cursor in a Node Stream and start streaming
 MongoReader.prototype.stream = function() {
   var _this = this;
-  var stream = this.cursor.stream();
+  var stream = this._stream = this.cursor.stream();
 
   stream.on('data', function(data) {
-    if (MongoReader._ops.hasOwnProperty(data.op)) {
-      _this.emit('data', data);
-      _this.emit(MongoReader._ops[data.op], data);
+    switch (data.op) {
+      case 'i':
+        _this.emit('add', data.o);
+        break;
+      case 'u':
+        var db = data.ns.split('.');
+        var collection = db[1];
+        db = db[0];
+        _this.db.db(db).collection(collection).findOne(data.o2, function(err, doc) {
+          _this.emit('add', doc);
+        });
+        break;
+      case 'd':
+        _this.emit('remove', data.o);
+        break;
     }
   }).on('close', function() {
     _this.emit('error', new Error('Connection to MongoDB closed'));

@@ -1,20 +1,20 @@
-var KeyIndex = require('./key');
+var KeyIndexer = require('./key');
 var utils = require('../lib/utils');
 var stemmer = require('natural').PorterStemmer;
 
-var TextIndex = function(redis, options) {
+var TextIndexer = function(redis, options) {
   this.redis = redis;
   this.idAttribute = options.idAttribute;
   this.fields = options.fields;
-  this.prefix = (options.prefix + ':') || 'text:';
+  this.prefix = options.prefix ? (options.prefix + ':') : 'text:';
   this.minWordLength = options.minWordLength || 3;
   this.sorted = true;
   this.cache = options.cache || 3600;
 }
 
-utils.inherits(TextIndex, KeyIndex);
+utils.inherits(TextIndexer, KeyIndexer);
 
-TextIndex.prototype.add = function(obj, callback) {
+TextIndexer.prototype.add = function(obj, callback) {
   if (!obj.hasOwnProperty(this.idAttribute)) {
     return callback(new Error('Document does not contain attribute ' + this.idAttribute));
   }
@@ -24,9 +24,23 @@ TextIndex.prototype.add = function(obj, callback) {
 
   // Get all words to index
   var words = [];
-  this.fields.forEach(function(field) {
-    _getWords(doc, field).forEach(function(word) {
-      if (word.length >= _this.minWordLength && words.indexOf(word) === -1) {
+  Object.keys(doc).forEach(function(field) {
+    if (field === _this.idAttribute) return;
+    if (/\./.test(field)) {
+      var skip = true;
+      var fieldName = '';
+      field.split('.').forEach(function(f) {
+        fieldName += f;
+        if (_this.fields.indexOf(fieldName) !== -1) {
+          skip = false;
+        }
+        fieldName += '.';
+      });
+      if (skip) return;
+    } else if (_this.fields.indexOf(field) === -1) return;
+    var w = _getWords(doc, field);
+    w.forEach(function(word) {
+      if (word && word.length >= _this.minWordLength && words.indexOf(word) === -1) {
         words.push(word);
       }
     });
@@ -51,20 +65,24 @@ TextIndex.prototype.add = function(obj, callback) {
   });
 }
 
-TextIndex.prototype.search = function(patterns, callback) {
+TextIndexer.prototype.search = function(patterns, callback) {
   if (Array.isArray(patterns)) {
     patterns = patterns.join(' ');
   }
   patterns = stemmer.tokenizeAndStem(patterns);
-  KeyIndex.prototype.search.call(this, patterns, callback);
+  KeyIndexer.prototype.search.call(this, patterns, callback);
 }
 
 // Tokenize and stem words and return in an array
 var _getWords = function(doc, field) {
   if (doc.hasOwnProperty(field)) {
-    return stemmer.tokenizeAndStem(doc[field]);
+    if (typeof doc[field] === 'string') {
+      return stemmer.tokenizeAndStem(doc[field]);
+    } else {
+      return [doc[field]];
+    }
   }
   return [];
 }
 
-module.exports = TextIndex;
+module.exports = TextIndexer;

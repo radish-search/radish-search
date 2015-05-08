@@ -1,6 +1,5 @@
 var config = require('./lib/config');
 var Redis = require('./lib/redis');
-var Mongo = require('./readers/mongo');
 
 module.exports = function(options) {
   options = options || {};
@@ -8,13 +7,10 @@ module.exports = function(options) {
 }
 
 module.exports.Redis = Redis;
+module.exports.Index = require('./lib/index');
 
-module.exports.readers = {
-  Mongo: Mongo
-}
+var indexers = require('./indexers');
+var readers = require('./readers');
 
-module.exports.indexes = {
-  Index: require('./indexes/index'),
-  KeyIndex: require('./indexes/key'),
-  TextIndex: require('./indexes/text')
-}
+for (var i in indexers) { module.exports[i] = indexers[i]; }
+for (var r in readers) { module.exports[r] = readers[r]; }

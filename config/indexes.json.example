@@ -1,0 +1,13 @@
+{
+  "fts": {
+    "reader": {
+      "type": "Mongo",
+      "db": "radish-test"
+    },
+    "indexer": {
+      "type": "Text",
+      "idAttribute": "_id",
+      "fields": ["title", "body"]
+    }
+  }
+}

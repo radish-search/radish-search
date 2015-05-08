@@ -1,8 +1,8 @@
 var expect = require('chai').expect;
 var Redis = require('../lib/redis');
-var Index = require('../indexes/index');
+var KeyIndex = require('../indexers/key');
 
-describe('indexes/index', function() {
+describe('indexers/key', function() {
   var index, redis;
   var doc = {id: 1, foo: 'bar'};
 
@@ -12,11 +12,12 @@ describe('indexes/index', function() {
   });
 
   it('should instantiate an index', function() {
-    index = new Index(redis, {idAttribute: 'id', prefix: 'radish-test-index'});
+    index = new KeyIndex(redis, {idAttribute: 'id', key: 'foo', prefix: 'radish-test-key'});
     expect(index).to.have.keys(['redis', 'idAttribute', 'key', 'prefix', 'sorted', 'cache']);
     expect(index.redis).to.equal(redis);
     expect(index.idAttribute).to.equal('id');
-    expect(index.prefix).to.equal('radish-test-index:');
+    expect(index.key).to.equal('foo');
+    expect(index.prefix).to.equal('radish-test-key:');
     expect(index.sorted).to.be.false;
   });
 
@@ -25,15 +26,16 @@ describe('indexes/index', function() {
       index.add(doc, function(err, reply) {
         if (err) return done(err);
         expect(reply).to.equal(1);
-        redis.KEYS('radish-test-index:1', function(err, reply) {
+        redis.KEYS('radish-test-key:bar', function(err, reply) {
           if (err) return done(err);
           expect(reply).to.be.an.instanceof(Array);
           expect(reply).to.have.length(1);
-          expect(reply[0]).to.equal('radish-test-index:1');
+          expect(reply[0]).to.equal('radish-test-key:bar');
           done();
         });
       });
     });
+
     it('should re-index a repeat document', function(done) {
       index.add(doc, function(err, reply) {
         if (err) return done(err);
@@ -44,12 +46,16 @@ describe('indexes/index', function() {
   });
 
   describe('#get', function() {
+    before(function(done) {
+      index.add({id: 2, foo: 'bar'}, done);
+    });
+
     it('should get documents matching a key', function(done) {
-      index.get('1', function(err, docs) {
+      index.get('bar', function(err, docs) {
         if (err) return done(err);
         expect(docs).to.be.an.instanceof(Array);
-        expect(docs).to.have.length(1);
-        expect(docs[0]).to.equal('1');
+        expect(docs).to.have.length(2);
+        expect(docs).to.have.members(['1', '2']);
         done();
       });
     });
@@ -57,29 +63,37 @@ describe('indexes/index', function() {
 
   describe('#match', function() {
     before(function(done) {
-      index.add({id: 2, foo: 'bar'}, done);
-    });
-    before(function(done) {
-      index.add({id: 10, foo: 'bar'}, done);
+      index.add({id: 3, foo: 'ber'}, done);
     });
 
-    it('should return documents with an id that matches the pattern', function(done) {
-      index.match('1*', function(err, result) {
+    before(function(done) {
+      index.add({id: 4, foo: 'baz'}, done);
+    });
+
+    it('should return documents with keys that match the pattern', function(done) {
+      index.match('ba*', function(err, result) {
         if (err) return done(err);
         expect(result).to.have.keys(['count', 'results']);
-        expect(result.count).to.equal(2);
+        expect(result.count).to.equal(3);
         expect(result.results).to.be.an.instanceof(Array);
-        expect(result.results).to.have.length(2);
-        expect(result.results).to.have.members(['1', '10']);
+        expect(result.results).to.have.length(3);
+        expect(result.results).to.have.members(['1', '2', '4']);
         done();
       });
     });
   });
 
   describe('#search', function() {
-    it('should throw an exception', function() {
-      expect(index.search).to.throw(Error);
-      expect(index.search).to.throw(/not implemented/);
+    it('should search for all ids with matching keys', function(done) {
+      index.search('bar baz', function(err, result) {
+        if (err) return done(err);
+        expect(result).to.have.keys(['count', 'results']);
+        expect(result.count).to.equal(3);
+        expect(result.results).to.be.an.instanceof(Array);
+        expect(result.results).to.have.length(3);
+        expect(result.results).to.have.members(['1', '2', '4']);
+        done();
+      });
     });
   });
 
@@ -88,10 +102,11 @@ describe('indexes/index', function() {
       index.remove(doc, function(err, reply) {
         if (err) return done(err);
         expect(reply).to.equal('OK');
-        redis.KEYS('radish-test-index:1', function(err, reply) {
+        index.get('bar', function(err, docs) {
           if (err) return done(err);
-          expect(reply).to.be.an.instanceof(Array);
-          expect(reply).to.have.length(0);
+          expect(docs).to.be.an.instanceof(Array);
+          expect(docs).to.have.length(1);
+          expect(docs[0]).to.equal('2');
           done();
         });
       });

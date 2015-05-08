@@ -5,27 +5,24 @@ var config = require('./lib/config');
 var utils = require('./lib/utils');
 
 // Connect to Redis
-radish({readers: ['mongo']}).on('connected', function(db) {
+var redis = radish(config.get()).on('connected', function(db) {
   utils.log('Radish is now connected to Redis (db ' + db + ')');
 });
 
-// Connect to Mongo and listen to data changes
-var mongo = new radish.readers.Mongo(config.get('mongo'));
-mongo.listen()
-.on('connected', function() {
-  utils.log('Radish is now connected to MongoDB (' + this.dbName + ')')
-})
-.on('insert', function(data) {
-  console.log('MongoDB:insert', data);
-})
-.on('update', function(data) {
-  console.log('MongoDB:update', data);
-})
-.on('delete', function(data) {
-  console.log('MongoDB:delete', data);
-})
-.on('error', function(err) {
-  console.error('MongoDB:error', err);
-});
-
-module.exports = radish;
+// Initialize all configured indexes
+var indexes = config.get('indexes');
+for (var i in indexes) {
+  var index = indexes[i];
+  var indexer = new radish[index.indexer.type + 'Indexer'](redis, index.indexer);
+  var reader = new radish[index.reader.type + 'Reader'](index.reader);
+  new radish.Index(indexer, reader).start()
+  .on('start', function() {
+    utils.log('Radish is now indexing ' + index.reader.type + ' (db ' + index.reader.db + ') into ' + i);
+  })
+  .on('add', function(doc) {
+    utils.log('Added ' + doc[index.indexer.idAttribute] + ' to the ' + i + ' index');
+  })
+  .on('remove', function(doc) {
+    utils.log('Removed ' + doc[index.indexer.idAttribute] + ' from the ' + i + ' index');
+  });
+}
