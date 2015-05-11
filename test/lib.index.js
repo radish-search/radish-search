@@ -3,7 +3,7 @@ var EventEmitter = require('events').EventEmitter;
 var Redis = require('../lib/redis');
 var Index = require('../lib/index');
 var BaseIndexer = require('../indexers/base');
-var MongoReader = require('../readers/mongo');
+var BaseReader = require('../readers/base');
 
 describe('lib/index', function() {
   before(function(done) {
@@ -13,7 +13,7 @@ describe('lib/index', function() {
 
   before(function() {
     this.indexer = new BaseIndexer(this.redis, {idAttribute: '_id', prefix: 'radish-test-index'});
-    this.reader = new MongoReader({db: 'radish-test'});
+    this.reader = new BaseReader({db: 'radish-test'});
   });
 
   it('should initialize a new index', function() {
@@ -26,7 +26,7 @@ describe('lib/index', function() {
   });
 
   it('should listen to events from the reader', function(done) {
-    var doc = this.doc = {foo: 'bar'};
+    var doc = this.doc = {_id: 1, foo: 'bar'};
     this.index.once('error', done);
     this.index.once('add', function(added) {
       expect(added).to.be.ok;
@@ -34,10 +34,7 @@ describe('lib/index', function() {
       done();
     });
     this.index.on('start', function() {
-      this.reader.db.db('radish-test').collection('radish-test').insert(doc, function(err, result) {
-        doc._id = result.ops[0]._id;
-        if (err) return done(err);
-      });
+      this.reader.add(doc);
     }).start();
   });
 
@@ -58,7 +55,19 @@ describe('lib/index', function() {
   });
 
   after(function(done) {
-    this.timeout(10000);
-    this.reader.db.db('radish-test').collection('radish-test').remove(done);
+    var redis = this.redis;
+    redis.KEYS('radish-test*', function(err, keys) {
+      if (err) return done(err);
+      var remaining = keys.length;
+      if (!remaining) return done();
+      keys.forEach(function(key) {
+        redis.DEL(key, function(err, reply) {
+          if (err) return done(err);
+          if (--remaining === 0) {
+            done()
+          }
+        });
+      });
+    });
   });
 });

@@ -31,7 +31,7 @@ var remove = function(i) {
 var indexes = config.get('indexes');
 for (var i in indexes) {
   var index = indexes[i];
-  index.reader.index = i;
+  index.reader.namespace = i;
   var indexer = new radish[index.indexer.type + 'Indexer'](redis, index.indexer);
   var reader = new radish[index.reader.type + 'Reader'](index.reader);
   new radish.Index(indexer, reader)

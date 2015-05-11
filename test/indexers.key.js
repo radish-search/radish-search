@@ -3,27 +3,27 @@ var Redis = require('../lib/redis');
 var KeyIndex = require('../indexers/key');
 
 describe('indexers/key', function() {
-  var index, redis;
   var doc = {id: 1, foo: 'bar'};
 
   before(function(done) {
-    redis = new Redis();
-    redis.select(15, done);
+    this.redis = new Redis();
+    this.redis.select(15, done);
   });
 
   it('should instantiate an index', function() {
-    index = new KeyIndex(redis, {idAttribute: 'id', key: 'foo', prefix: 'radish-test-key'});
-    expect(index).to.have.keys(['redis', 'idAttribute', 'key', 'prefix', 'sorted', 'cache']);
-    expect(index.redis).to.equal(redis);
-    expect(index.idAttribute).to.equal('id');
-    expect(index.key).to.equal('foo');
-    expect(index.prefix).to.equal('radish-test-key:');
-    expect(index.sorted).to.be.false;
+    this.index = new KeyIndex(this.redis, {idAttribute: 'id', key: 'foo', prefix: 'radish-test-key'});
+    expect(this.index).to.have.keys(['redis', 'idAttribute', 'key', 'prefix', 'sorted', 'cache']);
+    expect(this.index.redis).to.equal(this.redis);
+    expect(this.index.idAttribute).to.equal('id');
+    expect(this.index.key).to.equal('foo');
+    expect(this.index.prefix).to.equal('radish-test-key:');
+    expect(this.index.sorted).to.be.false;
   });
 
   describe('#add', function() {
     it('should add a document to the index', function(done) {
-      index.add(doc, function(err, reply) {
+      var redis = this.redis;
+      this.index.add(doc, function(err, reply) {
         if (err) return done(err);
         expect(reply).to.equal(1);
         redis.KEYS('radish-test-key:bar', function(err, reply) {
@@ -37,7 +37,7 @@ describe('indexers/key', function() {
     });
 
     it('should re-index a repeat document', function(done) {
-      index.add(doc, function(err, reply) {
+      this.index.add(doc, function(err, reply) {
         if (err) return done(err);
         expect(reply).to.equal(1);
         done();
@@ -47,11 +47,11 @@ describe('indexers/key', function() {
 
   describe('#get', function() {
     before(function(done) {
-      index.add({id: 2, foo: 'bar'}, done);
+      this.index.add({id: 2, foo: 'bar'}, done);
     });
 
     it('should get documents matching a key', function(done) {
-      index.get('bar', function(err, docs) {
+      this.index.get('bar', function(err, docs) {
         if (err) return done(err);
         expect(docs).to.be.an.instanceof(Array);
         expect(docs).to.have.length(2);
@@ -63,15 +63,15 @@ describe('indexers/key', function() {
 
   describe('#match', function() {
     before(function(done) {
-      index.add({id: 3, foo: 'ber'}, done);
+      this.index.add({id: 3, foo: 'ber'}, done);
     });
 
     before(function(done) {
-      index.add({id: 4, foo: 'baz'}, done);
+      this.index.add({id: 4, foo: 'baz'}, done);
     });
 
     it('should return documents with keys that match the pattern', function(done) {
-      index.match('ba*', function(err, result) {
+      this.index.match('ba*', function(err, result) {
         if (err) return done(err);
         expect(result).to.have.keys(['count', 'results']);
         expect(result.count).to.equal(3);
@@ -85,7 +85,7 @@ describe('indexers/key', function() {
 
   describe('#search', function() {
     it('should search for all ids with matching keys', function(done) {
-      index.search('bar baz', function(err, result) {
+      this.index.search('bar baz', function(err, result) {
         if (err) return done(err);
         expect(result).to.have.keys(['count', 'results']);
         expect(result.count).to.equal(3);
@@ -99,6 +99,7 @@ describe('indexers/key', function() {
 
   describe('#remove', function() {
     it('should remove a document from the index', function(done) {
+      var index = this.index;
       index.remove(doc, function(err, reply) {
         if (err) return done(err);
         expect(reply).to.equal('OK');
@@ -114,6 +115,7 @@ describe('indexers/key', function() {
   });
 
   after(function(done) {
+    var redis = this.redis;
     redis.KEYS('radish-test*', function(err, keys) {
       if (err) return done(err);
       var remaining = keys.length;

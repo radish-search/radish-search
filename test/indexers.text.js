@@ -7,24 +7,25 @@ describe('indexers/text', function() {
   var doc = {id: 1, description: 'The quick brown fox jumps over the lazy dog.'};
 
   before(function(done) {
-    redis = new Redis();
-    redis.select(15, done);
+    this.redis = new Redis();
+    this.redis.select(15, done);
   });
 
   it('should instantiate an index', function() {
-    index = new TextIndex(redis, {idAttribute: 'id', fields: ['description'], minWordLength: 1, prefix: 'radish-test-text'});
-    expect(index).to.have.keys(['redis', 'idAttribute', 'fields', 'minWordLength', 'prefix', 'sorted', 'cache']);
-    expect(index.redis).to.equal(redis);
-    expect(index.idAttribute).to.equal('id');
-    expect(index.fields).to.deep.equal(['description']);
-    expect(index.minWordLength).to.equal(1);
-    expect(index.prefix).to.equal('radish-test-text:');
-    expect(index.sorted).to.be.true;
+    this.index = new TextIndex(this.redis, {idAttribute: 'id', fields: ['description'], minWordLength: 1, prefix: 'radish-test-text'});
+    expect(this.index).to.have.keys(['redis', 'idAttribute', 'fields', 'minWordLength', 'prefix', 'sorted', 'cache']);
+    expect(this.index.redis).to.equal(this.redis);
+    expect(this.index.idAttribute).to.equal('id');
+    expect(this.index.fields).to.deep.equal(['description']);
+    expect(this.index.minWordLength).to.equal(1);
+    expect(this.index.prefix).to.equal('radish-test-text:');
+    expect(this.index.sorted).to.be.true;
   });
 
   describe('#add', function() {
     it('should add a document to the index', function(done) {
-      index.add(doc, function(err, reply) {
+      var redis = this.redis;
+      this.index.add(doc, function(err, reply) {
         if (err) return done(err);
         expect(reply).to.equal(7);
         redis.KEYS('radish-test-text:*', function(err, reply) {
@@ -37,7 +38,7 @@ describe('indexers/text', function() {
     });
 
     it('should re-index a repeat document', function(done) {
-      index.add(doc, function(err, reply) {
+      this.index.add(doc, function(err, reply) {
         if (err) return done(err);
         expect(reply).to.equal(7);
         done();
@@ -47,15 +48,15 @@ describe('indexers/text', function() {
 
   describe('#get', function() {
     before(function(done) {
-      index.add({id: 2, description: 'The quick brown fox hopped over the lazy dog'}, done);
+      this.index.add({id: 2, description: 'The quick brown fox hopped over the lazy dog'}, done);
     });
 
     before(function(done) {
-      index.add({id: 3, description: 'The quick brown fox jumped over the lazy dog'}, done);
+      this.index.add({id: 3, description: 'The quick brown fox jumped over the lazy dog'}, done);
     });
 
     it('should get documents matching a key', function(done) {
-      index.get('jump', function(err, docs) {
+      this.index.get('jump', function(err, docs) {
         if (err) return done(err);
         expect(docs).to.be.an.instanceof(Array);
         expect(docs).to.have.length(2);
@@ -67,7 +68,7 @@ describe('indexers/text', function() {
 
   describe('#match', function() {
     it('should return documents with keys that match the pattern', function(done) {
-      index.match('ju*', function(err, result) {
+      this.index.match('ju*', function(err, result) {
         if (err) return done(err);
         expect(result).to.have.keys(['count', 'results']);
         expect(result.count).to.equal(2);
@@ -81,7 +82,7 @@ describe('indexers/text', function() {
 
   describe('#search', function() {
     it('should search for all ids with matching keys', function(done) {
-      index.search('dogs with problems about laziness', function(err, result) {
+      this.index.search('dogs with problems about laziness', function(err, result) {
         if (err) return done(err);
         expect(result).to.have.keys(['count', 'results']);
         expect(result.count).to.equal(3);
@@ -95,6 +96,7 @@ describe('indexers/text', function() {
 
   describe('#remove', function() {
     it('should remove a document from the index', function(done) {
+      var index = this.index;
       index.remove(doc, function(err, reply) {
         if (err) return done(err);
         expect(reply).to.equal('OK');
@@ -110,6 +112,7 @@ describe('indexers/text', function() {
   });
 
   after(function(done) {
+    var redis = this.redis;
     redis.KEYS('radish-test*', function(err, keys) {
       if (err) return done(err);
       var remaining = keys.length;

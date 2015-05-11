@@ -18,11 +18,11 @@ MongoReader.prototype.start = function() {
   } else {
     var _this = this;
     this.connect(function(err) {
-      if (err) return _this.emit('error', err);
+      if (err) return _this.emit.call(_this, 'error', err);
       _this.getCursor(function(err) {
-        if (err) return _this.emit('error', err);
+        if (err) return _this.emit.call(_this, 'error', err);
         _this.stream().resume();
-        _this.emit('start');
+        _this.emit.call(_this, 'start');
       });
     });
   }
@@ -33,7 +33,10 @@ MongoReader.prototype.start = function() {
 MongoReader.prototype.stop = function() {
   if (this._stream) {
     this._stream.pause();
-    this.emit('stop');
+    var _this = this;
+    process.nextTick(function() {
+      _this.emit.call(_this, 'stop');
+    });
   }
   return this;
 }
@@ -93,26 +96,26 @@ MongoReader.prototype.stream = function() {
   stream.on('data', function(data) {
     switch (data.op) {
       case 'i':
-        _this.emit('add', data.o);
+        _this.add(data.o);
         break;
       case 'u':
         var db = data.ns.split('.');
         var collection = db[1];
         db = db[0];
         _this.db.db(db).collection(collection).findOne(data.o2, function(err, doc) {
-          _this.emit('add', doc);
+          _this.add(doc);
         });
         break;
       case 'd':
-        _this.emit('remove', data.o);
+        _this.remove(data.o);
         break;
     }
   }).on('close', function() {
-    _this.emit('error', new Error('Connection to MongoDB closed'));
+    _this.emit.call(_this, 'error', new Error('Connection to MongoDB closed'));
   }).on('end', function() {
-    _this.emit('error', new Error('Connection to MongoDB ended'));
+    _this.emit.call(_this, 'error', new Error('Connection to MongoDB ended'));
   }).on('error', function() {
-    _this.emit('error', err);
+    _this.emit.call(_this, 'error', err);
   });
 
   this._keepAlive();

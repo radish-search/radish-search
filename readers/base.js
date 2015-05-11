@@ -6,11 +6,35 @@ var BaseReader = function() {}
 utils.inherits(BaseReader, EventEmitter);
 
 BaseReader.prototype.start = function() {
-  throw new Error('Reader needs to implement `#start()`');
+  var _this = this;
+  process.nextTick(function() {
+    _this.emit.call(_this, 'start');
+  });
+  return this;
 }
 
 BaseReader.prototype.stop = function() {
-  throw new Error('Reader needs to implement `#stop()`');
+  var _this = this;
+  process.nextTick(function() {
+    _this.emit.call(_this, 'stop');
+  });
+  return this;
+}
+
+BaseReader.prototype.add = function(doc) {
+  var _this = this;
+  process.nextTick(function() {
+    _this.emit.call(_this, 'add', doc);
+  });
+  return this;
+}
+
+BaseReader.prototype.remove = function(doc) {
+  var _this = this;
+  process.nextTick(function() {
+    _this.emit.call(_this, 'remove', doc);
+  });
+  return this;
 }
 
 module.exports = BaseReader;

@@ -6,8 +6,8 @@ var HttpReader = function(config) {
   config = config || {};
   this.hostname = config.hostname || 'localhost';
   this.port = config.port || 6378;
+  this.namespace = config.namespace || 'radish';
   this.secret = config.secret;
-  this.index = config.index;
 }
 
 utils.inherits(HttpReader, BaseReader);
@@ -16,12 +16,6 @@ HttpReader.prototype.start = function() {
   var _this = this;
   if (!this.http) {
     this.http = http.createServer(function(req, res) {
-      // Verify correct URL
-      if (!(new RegExp('^/' + _this.index + '/')).test(req.url)) {
-        res.statusCode = 404;
-        return res.end('Not Found');
-      }
-
       // Verify secret key
       // TODO: Change this to a Basic WWW-Authentication
       if (_this.secret && req.headers.secret && _this.secret !== req.headers.secret) {
@@ -29,31 +23,46 @@ HttpReader.prototype.start = function() {
         return res.end('Secret key is required');
       }
 
-      switch (req.method) {
-        case 'PUT':
-          parseBody(req, function(err, doc) {
-            if (err) return _this.emit('error', err);
-            _this.emit('add', doc);
-          });
-          break;
-        case 'DELETE':
-          parseBody(req, function(err, doc) {
-            if (err) return _this.emit('error', err);
-            _this.emit('remove', doc);
-          });
-          break;
-        case 'GET':
-        case 'POST':
-        default:
-          res.statusCode = 405;
-          return res.end('Method Not Allowed');
+      if (new RegExp('^/' + _this.namespace + '/').test(req.url)) {
+        // Resource URL (e.g. PUT|DELETE http://localhost:6378/radish/1)
+        switch (req.method) {
+          case 'PUT':
+            parseBody(req, function(err, doc) {
+              if (err) return _this.emit.call(_this, 'error', err);
+              _this.emit.call(_this, 'add', doc);
+            });
+            return res.end('OK');
+          case 'DELETE':
+            parseBody(req, function(err, doc) {
+              if (err) return _this.emit.call(_this, 'error', err);
+              _this.emit.call(_this, 'remove', doc);
+            });
+            return res.end('OK');
+          default:
+            res.statusCode = 405;
+            return res.end('Method Not Allowed');
+        }
+      } else if (new RegExp('^/' + _this.namespace + '$').test(req.url)) {
+        // Index URL (e.g. HEAD|GET http://localhost:6378/radish)
+        switch (req.method) {
+          case 'HEAD':
+          case 'GET':
+            res.statusCode = 200;
+            return res.end('OK');
+          default:
+            res.statusCode = 405;
+            return res.end('Method Not Allowed');
+        }
+      } else {
+        // Incorrect URL
+        res.statusCode = 404;
+        return res.end('Not Found');
       }
-      res.end('OK');
     });
   }
   this.http.listen(this.port, this.hostname, function() {
     utils.log('Radish is now listening on port ' + _this.port);
-    _this.emit('start');
+    _this.emit.call(_this, 'start');
   });
   return this;
 }
@@ -75,7 +84,10 @@ var parseBody = function(req, callback) {
 HttpReader.prototype.stop = function() {
   if (this.http) {
     this.http.close();
-    this.emit('stop');
+    var _this = this;
+    process.nextTick(function() {
+      _this.emit.call(_this, 'stop');
+    });
   }
   return this;
 }
