@@ -1,7 +1,7 @@
 {
-  "name": "radish",
+  "name": "radish-search",
   "description": "Search engine that uses Redis as a backend data store",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "author": {
     "name": "Victor Kareh",
     "email": "vkareh@vkareh.net"
@@ -9,7 +9,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git://github.com/radish-search/radish.git"
+    "url": "git://github.com/radish-search/radish-search.git"
   },
   "main": "radish.js",
   "scripts": {
@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "hiredis": "^0.3.0",
-    "mongodb": "^2.0.27",
     "natural": "^0.2.1",
     "nconf": "^0.7.1",
     "redis": "^0.12.1"

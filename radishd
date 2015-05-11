@@ -3,10 +3,19 @@
 var radish = require('./radish.js');
 var config = require('./lib/config');
 var utils = require('./lib/utils');
+var plugins = require('./lib/plugins');
 
 // Connect to Redis
 var redis = radish(config.get()).on('connected', function(db) {
   utils.log('Radish is now connected to Redis (db ' + db + ')');
+});
+
+// Load all available plugins
+var fs = require('fs');
+fs.readdirSync('node_modules').forEach(function(plugin) {
+  if (plugins.isPlugin(plugin)) {
+    radish.loadPlugin(plugin);
+  }
 });
 
 var start = function(i) {
