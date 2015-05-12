@@ -31,7 +31,46 @@ plugins cannot do.
 
 Configuration
 -------------
+When used as a daemon, Radish uses the [rc](https://github.com/dominictarr/rc)
+module for managing configuration files.
 
+The main things to configure are the Redis database to which Radish connects,
+and the indexing strategies to use. Each indexing strategy is configured under
+its own section, following the convention `[indexes.<index_name>]`, and adding
+_reader_ and _indexer_ configuration options within that index section.
+
+Please read the [rc standards](https://github.com/dominictarr/rc#standards) for
+information on file naming conventions and directories. A good place to put it
+is in `/etc/radishrc`.
+
+```
+[redis]
+# Redis configuration
+host = localhost
+port = 6379
+db = 0
+
+[indexes.fts]
+# MongoDB full-text indexing
+reader.type = mongo
+reader.host = localhost
+reader.port = 27017
+reader.db = radish-test
+indexer.type = text
+indexer.idAttribute = _id
+indexer.fields[] = title
+indexer.fields[] = body
+```
+
+When using Radish as a module, the only configuration necessary is the Redis
+connection parameters, which is passed directly to the module export:
+
+```javascript
+var radish = require('radish-search')({host: 'localhost', port: 6379, db: 0});
+```
+
+All the indexing strategies are done in code by creating instances of the
+appropriate `Reader` and `Indexer` classes.
 
 Plugins
 -------

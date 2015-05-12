@@ -6,7 +6,7 @@ var utils = require('./lib/utils');
 var plugins = require('./lib/plugins');
 
 // Connect to Redis
-var redis = radish(config.get()).on('connected', function(db) {
+var redis = radish(config.redis).on('connected', function(db) {
   utils.log('Radish is now connected to Redis (db ' + db + ')');
 });
 
@@ -37,12 +37,12 @@ var remove = function(i) {
 }
 
 // Initialize all configured indexes
-var indexes = config.get('indexes');
+var indexes = config.indexes;
 for (var i in indexes) {
   var index = indexes[i];
   index.reader.namespace = i;
-  var indexer = new radish[index.indexer.type + 'Indexer'](redis, index.indexer);
-  var reader = new radish[index.reader.type + 'Reader'](index.reader);
+  var indexer = new radish[index.indexer.type.toLowerCase() + 'indexer'](redis, index.indexer);
+  var reader = new radish[index.reader.type.toLowerCase() + 'reader'](index.reader);
   new radish.Index(indexer, reader)
   .start()
   .on('start', start(i))

@@ -13,5 +13,4 @@ npm-debug.log
 node_modules
 coverage
 
-config/development.json
-config/production.json
+.radishrc
